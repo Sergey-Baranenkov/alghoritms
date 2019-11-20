@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>Skip List</title>
+    <link rel="shortcut icon" href="./images/fav.png" type="image/x-icon">
+    <link rel="stylesheet" href="./styles.css"></style>
+    <script type="text/javascript">
+    </script>
+  </head>
+  <body>
+    <form id="functional">
+      <fieldset name="Fieldset" class="fieldset">
+        <legend>OPTIONS</legend>
+        <input  name="insertF" type="number">
+        <button name="insertB" onclick="return false">INSERT</button>
+
+        <input  name="removeF" type="number">
+        <button name="removeB" onclick="return false">REMOVE</button>
+
+        <span class="wrapper"><input  name="searchF" type="number" class = "searchBar"><div class="result"></div></span>
+        <button name="searchB" onclick="return false">SEARCH</button>
+      </fieldset>
+    </form>
+    <canvas id="canvas" width="121px" height="150px"></canvas>
+  </body>
+  <script type ="text/javascript" src="./skiplist.js"></script>
+  <script type="text/javascript">
+    function strokeChains(arr,ctx){
+      const lineL = 30;
+      const rectW = 100;
+      const rectH = 50;
+      ctx.fillStyle = 'black';
+      ctx.font = `${rectW>100?Math.round(18*rectW/100)+0.5:18}px serif`;
+      arr.forEach((level,num)=>{
+        num=0.1+num;
+        let x = 10;
+        level.forEach((el,n)=>{
+          if(el!=null){
+            ctx.lineWidth = "3";
+            ctx.strokeStyle = 'rgb(88, 8, 8)';
+            ctx.strokeRect(x, num*(lineL+rectH), rectW, rectH);
+            ctx.strokeStyle = 'rgb(15, 77, 50)';
+            ctx.lineWidth = "5";
+            ctx.fillText(el==-Infinity?`      -∞`:String(el<10**6?el:Number(el).toExponential(4)),
+                         x+rectW/2-(String(el).length>2? (String(el).length > 4? (String(el).length > 6? 40 : 23 ): 16):7),
+                         num*(lineL+rectH)+rectH/2+5*rectW/100,rectW, rectH);
+
+            if(num<arr.length-1){//нижние линии
+              ctx.moveTo(x+rectW/2,num*(lineL+rectH)+rectH+2);
+              ctx.lineTo(x+rectW/2,(num+1)*(lineL+rectH)-2);
+              ctx.stroke();
+            }
+          }else{
+            ctx.moveTo(x-2,num*(lineL+rectH)+rectH/2);
+            ctx.lineTo(x+rectW+2,num*(lineL+rectH)+rectH/2);
+          }
+
+          if(n<level.length-1){//боковые линии
+            ctx.moveTo(x+rectW+2,num*(lineL+rectH)+rectH/2);
+            ctx.lineTo(x+rectW+lineL-2,num*(lineL+rectH)+rectH/2);
+            ctx.stroke();
+          }
+          x+=rectW+lineL;
+        });
+      });
+    }
+    function redraw(add){
+      list_report=list.report();
+      canvas.height+=add?80:-80;
+      canvas.width+=add?130:-130;
+      strokeChains(list_report,ctx);
+    }
+    const canvas = document.getElementsByTagName('canvas')[0];
+    ctx = canvas.getContext("2d");
+    strokeChains([[-Infinity]],ctx);
+    let list = new Skiplist();
+    let list_report = list.report();
+    const Fieldset = document.forms[0].elements.Fieldset;
+    const insertField = Fieldset.children.insertF;
+    const insertButton = Fieldset.children.insertB;
+    const removeField = Fieldset.children.removeF;
+    const removeButton = Fieldset.children.removeB;
+    const searchField = Fieldset.children[5].children[0];
+    const searchButton = Fieldset.children.searchB;
+    const resultSmile = Fieldset.children[5].children[1];
+    insertField.addEventListener('keydown',(event)=>{
+      if(event.keyCode=='13'){
+        event.preventDefault();
+        if (event.target.value.length){
+          list.insert(+event.target.value)&&redraw(1);
+        }
+        insertField.value='';
+      }
+    });
+    insertButton.addEventListener('click',()=>{
+      if (insertField.value.length){
+        list.insert(+insertField.value)&&redraw(1);
+      }
+      insertField.value='';
+      insertField.focus();
+    });
+
+    removeField.addEventListener('keydown',(event)=>{
+      if(event.keyCode=='13'){
+        event.preventDefault();
+        if (event.target.value.length){
+          list.remove(+event.target.value)&&redraw(0);
+        }
+        removeField.value='';
+      }
+    });
+    removeButton.addEventListener('click',()=>{
+      if (removeField.value.length){
+        list.remove(+removeField.value)&&redraw(0);;
+        removeField.value='';
+      }
+      removeField.focus();
+    });
+
+    searchField.addEventListener('keydown',(event)=>{
+      if(event.keyCode=='13'){
+        event.preventDefault();
+        if(event.target.value.length){
+          if(list.search(+event.target.value)){
+            resultSmile.style.backgroundPosition = "0 0";
+            setTimeout(()=>{
+              resultSmile.style.backgroundPosition = "-50px 0";
+            },2000);
+          }else{
+            resultSmile.style.backgroundPosition = "-25px 0";
+            setTimeout(()=>{
+              resultSmile.style.backgroundPosition = "-50px 0";
+            },2000);
+          }
+        }
+        searchField.value='';
+      }
+    });
+    searchButton.addEventListener('click',()=>{
+      if(searchField.value.length){
+        if(list.search(+searchField.value)){
+          resultSmile.style.backgroundPosition = "0 0";
+          setTimeout(()=>{
+            resultSmile.style.backgroundPosition = "-50px 0";
+          },2000);
+        }else{
+          resultSmile.style.backgroundPosition = "-25px 0";
+          setTimeout(()=>{
+            resultSmile.style.backgroundPosition = "-50px 0";
+          },2000);
+        }
+        searchField.value='';
+      }
+      searchField.focus();
+    });
+  </script>
+</html>
