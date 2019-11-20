@@ -1,0 +1,121 @@
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+)
+
+
+func main(){
+	//инициализируем число вершин и ребер
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+	initialization:= strings.Split(scanner.Text()," ")// колво вершин колво ребер
+
+	VericesNum,_:= strconv.Atoi(initialization[0])
+	EdgesNum,_:=strconv.Atoi(initialization[1])
+
+	//создаем граф
+	var Graph = make([][]int,0)
+
+	//заполняем граф "нулевыми" вершинами
+	for i:=0;i<VericesNum;i++{
+		Graph = append(Graph,[]int{})
+	}
+	//
+	for i:=0;i<EdgesNum;i++{
+		scanner.Scan()
+		Edge:= strings.Split(scanner.Text()," ")
+		start,_:= strconv.Atoi(Edge[0])
+		end,_:=strconv.Atoi(Edge[1])
+		if start!=end {Graph[start] = append(Graph[start],end)}
+	}
+
+	//сортируем ребра чтобы алгоритм ходил сначала по наименьшим ребрам
+	for _,arr:= range Graph{
+		sort.Ints(arr)
+	}
+
+	TrialForCycles(Graph)
+}
+
+func TrialForCycles (Graph [][]int){
+	Len:= len(Graph)
+
+	LastCycleIndex:=-1
+	//бесконечность на минималках
+	const MaxUint = ^uint(0)
+	const MaxInt = int(MaxUint >> 1)
+
+	CycleToVisit:= []int{MaxInt ,MaxInt}
+	var predecessors = make([]int,Len)
+	var visited = make([]int,Len)
+	for i:=0; i<Len; i++{predecessors[i] = -1}
+
+
+	for i:=0;i<Len;i++{
+		if visited[i] == 0{
+			DFSUtil(i, &visited, &Graph, &predecessors,&LastCycleIndex,&CycleToVisit)
+		}
+	}
+
+	//если есть какой-то цикл - выводим его
+	if CycleToVisit[0] != MaxInt {GetCycle(&predecessors,&CycleToVisit)}else{fmt.Println("No cycles")}
+
+}
+func DFSUtil(index int,visited *[]int,Graph *[][]int,predecessors *[]int,LastCycleIndex *int,CycleToVisit *[]int){
+	(*visited)[index] = 1
+	for _,v:= range (*Graph)[index] {
+		if (*visited)[v] == 0 {
+			*LastCycleIndex = v
+			(*predecessors)[v] = index
+			DFSUtil(v, visited,Graph,predecessors,LastCycleIndex,CycleToVisit)
+		}else if (*visited)[v] == 1 && (*CycleToVisit)[0] > v{
+			*CycleToVisit = []int{v,*LastCycleIndex}
+		}
+	}
+	(*visited)[index] = 2
+}
+
+func GetCycle(predecessors *[]int,CycleToVisit *[]int){
+	var result[]int
+	//добавляем элементы цикла (в обратном порядке)
+	for i:=(*CycleToVisit)[1];i!=(*CycleToVisit)[0];i=(*predecessors)[i]{
+		result = append(result,i)
+	}
+	//меняем порядок на правильный
+	for left, right := 0, len(result)-1; left < right; left, right = left+1, right-1 {
+		result[left], result[right] = result[right], result[left]
+	}
+	result = append(result, (*CycleToVisit)[0])
+
+	//делаем цикл минимальным (в некоторых случаях алгоритм выдает не лексикографически минимальный цикл, не порядок)
+	min:=GetMin(result)
+	for result[0]!=min{
+		LeftRotateByOne(&result)
+	}
+	fmt.Println("Cycle:")
+	for _,el:=range result{
+		fmt.Print(strconv.Itoa(el) + " ")
+	}
+}
+func GetMin(arr[]int)int{
+	min:=arr[0]
+	for i:=1;i<len(arr);i++{
+		if arr[i]<min{min = arr[i]}
+	}
+	return min
+}
+
+func LeftRotateByOne(arr *[]int) {
+	var i int = 0
+	var temp int = (*arr)[0];
+	for ; i < len(*arr) - 1; i++ {
+		(*arr)[i] = (*arr)[i+1];
+	}
+	(*arr)[i] = temp;
+}

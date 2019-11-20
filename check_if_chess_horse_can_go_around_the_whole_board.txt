@@ -1,0 +1,86 @@
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+)
+
+func main(){
+	var HorsePaths = [][]int{[]int{-1,-2},[]int{1,-2},[]int{-2,-1},[]int{2,-1},[]int{-2,1},[]int{2,1},[]int{-1,2},[]int{1,2}}
+
+	//инициализируем число вершин и ребер
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+	size,_:=strconv.Atoi(scanner.Text())
+	scanner.Scan()
+	coords:=strings.Split(scanner.Text()," ")
+	y,_:=strconv.Atoi(coords[0])
+	x,_:=strconv.Atoi(coords[1])
+	Graph:= make([][]int,size*size)
+
+	LastIndex:= size*size
+	for i:=0;i<LastIndex;i++{
+		Graph[i] = []int{}
+	}
+	for squareIndex:=0;squareIndex<LastIndex;squareIndex++{
+		for _,path:= range HorsePaths{//проверяем, какие клетки доступны коню с исходной
+			var checkX int = squareIndex%size + path[0]
+			var checkY int = squareIndex/size + path[1]
+			if checkX < size && checkX >= 0 && checkY < size && checkY >= 0{
+				Graph[squareIndex] = append(Graph[squareIndex],checkY*size + checkX)
+			}
+		}
+	}
+	//печатаем граф
+	fmt.Println("Graph:")
+	for i,square:=range Graph{
+		fmt.Printf("%d - ",i)
+		for _,el:=range square{fmt.Printf("%d ",el)}
+		fmt.Println()
+	}
+	//запускаем поиск
+	DFS(Graph,y*size+x,size)
+}
+
+func DFS (Graph [][]int,startPoint int,size int){
+	SquaredSize:=size*size
+	var visited = make([]int,SquaredSize)
+
+	var path = make([]int,0,SquaredSize)
+
+	DFSUtil(startPoint, &visited, &Graph, &path)
+	fmt.Println("Hamiltonian path:")
+	if len(path)!=SquaredSize{
+		fmt.Println("No way")
+	}else{
+		chessTable:= make([]int,SquaredSize)
+		for i,el:=range path{
+			chessTable[el] = i
+		}
+		for i:=0;i<SquaredSize;i+=size{
+			for j:=0;j<size;j++{
+				fmt.Printf("%d ",chessTable[i+j])
+			}
+			fmt.Println()
+		}
+	}
+
+}
+func DFSUtil(index int,visited *[]int,Graph *[][]int,path *[]int){
+	(*visited)[index] = 1
+	*path = append(*path,index)
+	for _,v:= range (*Graph)[index] {
+		if (*visited)[v] == 0 {
+			DFSUtil(v, visited,Graph,path)
+			if len(*path) == len(*Graph){//если прошли все вершины возвращаемся из рекурсии
+				return
+			}else{
+				*path = (*path)[:len(*path)-1] //удаляем эту вершину из просмотренных
+			}
+		}
+	}
+	(*visited)[index] = 0
+}
