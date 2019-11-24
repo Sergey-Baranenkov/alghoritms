@@ -1,0 +1,217 @@
+package main
+
+import (
+	"bufio"
+	"container/heap"
+	"errors"
+	"fmt"
+	"math"
+	"os"
+	"strconv"
+	"strings"
+	"unicode"
+)
+
+type Edge struct{
+	Name string
+	distance float64
+}
+type CityUsefulInfo struct{
+	coords [2]float64
+	minDistance float64
+	predecessor string
+}
+
+type additionalInfo map[string]*CityUsefulInfo
+type graph map[string][]*Edge
+
+func main(){
+	Infinity:= math.MaxFloat64
+	//инициализируем число вершин и ребер
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+
+	CitiesNumber,_:= strconv.Atoi(scanner.Text())
+	addInfo:=make(additionalInfo,CitiesNumber)
+	Graph:= make(graph,CitiesNumber)
+	//заполняем граф и мапу доп информации
+	for i:=0;i<CitiesNumber;i++{
+		scanner.Scan()
+		CityInformation:=strings.FieldsFunc(scanner.Text(),unicode.IsSpace)
+		CityName:=CityInformation[0]
+		x,_:= strconv.Atoi(CityInformation[1])
+		y,_:= strconv.Atoi(CityInformation[2])
+
+		addInfo[CityName] = &CityUsefulInfo{[2]float64{float64(x),float64(y)},Infinity,""}
+
+		//заполняем граф
+		for edge:=3;edge<len(CityInformation);edge++{
+			Graph[CityName] = append(Graph[CityName],&Edge{CityInformation[edge],Infinity})
+		}
+	}
+	//считываем старт и финиш
+	scanner.Scan()
+	Path:=strings.FieldsFunc(scanner.Text(),unicode.IsSpace)
+	start:=Path[0]
+	finish:=Path[1]
+
+	//заполняем расстояния от города до города
+	for city,destCities:= range Graph{
+		for _,dest:=range destCities{
+			(*dest).distance = math.Sqrt(math.Pow((*addInfo[city]).coords[0] - (*addInfo[(*dest).Name]).coords[0] ,2) +
+				math.Pow((*addInfo[city]).coords[1] - (*addInfo[(*dest).Name]).coords[1] ,2))
+		}
+	}
+	//запускаем
+	Dijkstra(&Graph,&addInfo,start,finish)
+
+	//выводим
+	result:= make([]string,0,16)
+	for cityName:=finish;cityName!="";cityName = (*addInfo[cityName]).predecessor {
+		result = append(result,cityName)
+	}
+	if len(result) == 1 && finish!=start{
+		fmt.Println("Path:")
+		fmt.Println("No way")
+	}else{
+		fmt.Printf("Path is not greater than %d\n",int((*addInfo[finish]).minDistance + 1))
+		fmt.Println("Path:")
+		for i:=len(result)-1;i>=0;i--{fmt.Printf("%s ",result[i])}
+		fmt.Println()
+	}
+
+}
+
+func Dijkstra (Graph *graph,addInfo *additionalInfo,start,finish string){
+	//инициализируем стартовую вершину
+	(*(*addInfo)[start]).minDistance = 0
+	//очередь с приоритетом
+	pq:=New()
+	//иницализируем мапу посещений
+	visited:=make(map[string]bool)
+
+	//обавляем стартовую вершину в очередь
+	pq.Insert(start, (*(*addInfo)[start]).minDistance)
+
+	for pq.Len()!=0{
+		//рассматриваем очередную вершину
+		c,_:=pq.Pop()
+		//если вершину посещали просто удаляем из очереди
+		if visited[c] {continue}
+		for _,edge:=range (*Graph)[c]{
+			cMinDist:= (*(*addInfo)[c]).minDistance
+			edgeDist:= (*edge).distance
+			edgePointer:= (*addInfo)[(*edge).Name]
+
+			// релаксируем если расстояние через новую точку меньше чем старое
+			if (*edgePointer).minDistance > cMinDist + edgeDist{
+				(*edgePointer).minDistance = cMinDist + edgeDist
+
+				//запоминаем предка
+				(*(*addInfo)[(*edge).Name]).predecessor = c
+				//если нашли вершину выходим тк до нее наименьшее расстояние
+				if c == finish {return}
+			}
+			//запуливаем новую вершину в очередь
+			pq.Insert((*edge).Name,(*edgePointer).minDistance)
+		}
+		//когда рассмотрели всех потомков помечаем что вершина пройдена
+		visited[c] = true
+	}
+}
+
+
+//ДАЛЬШЕ ИДЕТ РЕАЛИЗАЦИЯ ОЧЕРЕДИ С ПРИОРИТЕТОМ, ПРИШЛОСЬ СКОПИРОВАТЬ В МЕЙН
+
+type PriorityQueue struct {
+	itemHeap *itemHeap
+	lookup   map[interface{}]*item
+}
+
+func New() PriorityQueue {
+	return PriorityQueue{
+		itemHeap: &itemHeap{},
+		lookup:   make(map[interface{}]*item),
+	}
+}
+
+
+func (p *PriorityQueue) Len() int {
+	return p.itemHeap.Len()
+}
+
+
+func (p *PriorityQueue) Insert(v string, priority float64) {
+	_, ok := p.lookup[v]
+	if ok {
+		return
+	}
+
+	newItem := &item{
+		value:    v,
+		priority: priority,
+	}
+	heap.Push(p.itemHeap, newItem)
+	p.lookup[v] = newItem
+}
+
+
+func (p *PriorityQueue) Pop() (string, error) {
+	if len(*p.itemHeap) == 0 {
+		return "", errors.New("empty queue")
+	}
+
+	item := heap.Pop(p.itemHeap).(*item)
+	delete(p.lookup, item.value)
+	return item.value, nil
+}
+
+func (p *PriorityQueue) Has(v int)interface{}{
+	_, ok := p.lookup[v]
+	return ok
+}
+
+func (p *PriorityQueue) UpdatePriority(x interface{}, newPriority float64) {
+	item, ok := p.lookup[x]
+	if !ok {
+		return
+	}
+
+	item.priority = newPriority
+	heap.Fix(p.itemHeap, item.index)
+}
+
+type itemHeap []*item
+
+type item struct {
+	value    string
+	priority float64
+	index    int
+}
+
+func (ih *itemHeap) Len() int {
+	return len(*ih)
+}
+
+func (ih *itemHeap) Less(i, j int) bool {
+	return (*ih)[i].priority < (*ih)[j].priority
+}
+
+func (ih *itemHeap) Swap(i, j int) {
+	(*ih)[i], (*ih)[j] = (*ih)[j], (*ih)[i]
+	(*ih)[i].index = i
+	(*ih)[j].index = j
+}
+
+func (ih *itemHeap) Push(x interface{}) {
+	it := x.(*item)
+	it.index = len(*ih)
+	*ih = append(*ih, it)
+}
+
+func (ih *itemHeap) Pop() interface{} {
+	old := *ih
+	item := old[len(old)-1]
+	*ih = old[0 : len(old)-1]
+	return item
+}

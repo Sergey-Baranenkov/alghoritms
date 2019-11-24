@@ -32,8 +32,9 @@ func main(){
 		Edge:= strings.Split(scanner.Text()," ")
 		start,_:= strconv.Atoi(Edge[0])
 		end,_:=strconv.Atoi(Edge[1])
-		if start!=end {Graph[start] = append(Graph[start],end)}
-	}
+		Graph[start] = append(Graph[start],end)
+    }
+	
 
 	//сортируем ребра чтобы алгоритм ходил сначала по наименьшим ребрам
 	for _,arr:= range Graph{
@@ -83,18 +84,19 @@ func DFSUtil(index int,visited *[]int,Graph *[][]int,predecessors *[]int,LastCyc
 
 func GetCycle(predecessors *[]int,CycleToVisit *[]int){
 	var result[]int
+    var min = int(^uint(0) >> 1)
 	//добавляем элементы цикла (в обратном порядке)
 	for i:=(*CycleToVisit)[1];i!=(*CycleToVisit)[0];i=(*predecessors)[i]{
 		result = append(result,i)
+        if i < min {min = i}
 	}
 	//меняем порядок на правильный
 	for left, right := 0, len(result)-1; left < right; left, right = left+1, right-1 {
 		result[left], result[right] = result[right], result[left]
 	}
 	result = append(result, (*CycleToVisit)[0])
-
+    if (*CycleToVisit)[0] < min {min = (*CycleToVisit)[0]}
 	//делаем цикл минимальным (в некоторых случаях алгоритм выдает не лексикографически минимальный цикл, не порядок)
-	min:=GetMin(result)
 	for result[0]!=min{
 		LeftRotateByOne(&result)
 	}
@@ -102,13 +104,6 @@ func GetCycle(predecessors *[]int,CycleToVisit *[]int){
 	for _,el:=range result{
 		fmt.Print(strconv.Itoa(el) + " ")
 	}
-}
-func GetMin(arr[]int)int{
-	min:=arr[0]
-	for i:=1;i<len(arr);i++{
-		if arr[i]<min{min = arr[i]}
-	}
-	return min
 }
 
 func LeftRotateByOne(arr *[]int) {
