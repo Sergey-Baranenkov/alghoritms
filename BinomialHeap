@@ -1,0 +1,251 @@
+class Ref:
+    def __init__(self, node: 'Node'):
+        self.ref = node
+
+class Node(object):
+    def __init__(self, key, value):
+        self.degree: int = 0  # Количество дочерних элементов данного узла
+        self.parent: Node | None = None  # Родитель узла
+        self.sibling: Node | None = None  # Правый брат
+        self.child: Node | None = None  # Левый ребенок
+        self.key = key  # Приоритет
+        self.value = value  # Значение ключа
+        self.ref = Ref(self) # Ссылка на первоначальный элемент при инсерте
+
+class BinomialHeap:
+    def __init__(self):
+        # Для хранения актуальных ссылок на ноды
+        self.head: Node | None = None  # Ссылка на корень дерева
+        self.size: int = 0  # Размер кучи
+
+    def _get_minimum(self) -> (Node | None, Node | None):
+        prev = None
+        current_target = self.head
+        if current_target is None:
+            return prev, None
+
+        current_minimum_node = current_target
+        current_target = current_target.sibling
+
+        while current_target:
+            if current_target.key < current_minimum_node.key:
+                prev = current_minimum_node
+                current_minimum_node = current_target
+
+            current_target = current_target.sibling
+
+        return prev, current_minimum_node
+
+    def get_minimum(self):
+        prev, minimum_node = self._get_minimum()
+        return minimum_node.value
+
+    # Мержим руты чтобы они шли в порядке неубывания
+    @staticmethod
+    def _merge_roots(h1: Node | None, h2: Node | None):
+        if h1 is None:
+            return h2
+        if h2 is None:
+            return h1
+
+        if h1.degree < h2.degree:
+            head = h1
+            h1 = head.sibling
+        else:
+            head = h2
+            h2 = h2.sibling
+
+        target = head
+
+        while h2 and h1:
+            if h1.degree < h2.degree:
+                target.sibling = h1
+                h1 = h1.sibling
+            else:
+                target.sibling = h2
+                h2 = h2.sibling
+
+            target = target.sibling
+
+        if h2:
+            target.sibling = h2
+        else:
+            target.sibling = h1
+
+        return head
+
+    # Объединить деревья одинаковой степени
+    # node2 становится левым ребенком node1
+    @staticmethod
+    def _merge_trees(node1: Node, node2: Node):
+        node2.parent = node1
+        node2.sibling = node1.child
+        node1.child = node2
+        node1.degree += 1
+
+    @staticmethod
+    def _merge(heap1: 'BinomialHeap', heap2: 'BinomialHeap'):
+
+        if heap2.size == 0:
+            return
+
+        if heap1.size == 0:
+            heap1.head = heap2.head
+            heap1.size = heap2.size
+            return
+
+        h1 = heap1.head
+        h2 = heap2.head
+
+        h1 = BinomialHeap._merge_roots(h1, h2)
+
+        prev: Node | None = None
+        target: Node = h1
+        sibling: Node | None = target.sibling
+
+        while sibling:
+            # Если степень текущей ноды != степени следующей ноды, либо степени трех подряд нод равны
+            if target.degree != sibling.degree or sibling.sibling and sibling.sibling.degree == target.degree:
+                # Идем на следующую вершину
+                prev = target
+                target = sibling
+            elif target.key <= sibling.key:  # Ключ текущего не больше ключа следующего
+                # Присоединяем следующую ноду к текущей
+                target.sibling = sibling.sibling
+                BinomialHeap._merge_trees(target, sibling)
+            else:  # Ключ текущего больше ключа следующего
+                # Если текущий элемент первый
+                if prev is None:
+                    # Обновляем корень кучи
+                    h1 = sibling
+                else:
+                    # Обновляем правого соседа предыдущей вершины
+                    prev.sibling = sibling
+
+                BinomialHeap._merge_trees(sibling, target)
+                target = sibling
+
+            sibling = target.sibling
+
+        heap1.head = h1
+
+    # Мержим две кучи
+    # итоговая куча будет находиться в heap1, he1p2 очищается
+    @staticmethod
+    def merge(heap1: 'BinomialHeap', heap2: 'BinomialHeap'):
+        heap1.size += heap2.size
+        return
+
+    # Добавить элемент в кучу
+    def insert(self, key, value):
+        node = Node(key, value)
+
+        temp = BinomialHeap()
+        temp.head = node
+        temp.size = 1
+
+        BinomialHeap.merge(self, temp)
+        return node.ref
+
+    # Переворачивает биномиальную кучу a - b -c -> c - b - a
+    @staticmethod
+    def _reverse_roots(node: Node | None):
+        if not node:
+            return None
+
+        tail = None
+
+        while node.sibling:
+            sibling = node.sibling
+            node.sibling = tail
+            tail = node
+            node = sibling
+
+        node.sibling = tail
+
+        return node
+
+    def extract_min(self):
+        prev, node = self._get_minimum()
+
+        if node is None:
+            return None
+
+        node.ref.ref = None  # Зануляем ссылку на ноду
+
+        # Если есть предыдущий элемент меняем указатели
+        if prev:
+            prev.sibling = node.sibling
+        else:  # Если удаляем минимальный - обновляем рут
+            self.head = node.sibling
+
+        children = node.child
+
+        # Обнуляем родителя детей
+        p = children
+        while p:
+            p.parent = None
+            p = p.sibling
+
+        # Меняем корни чтобы у нас получилась отсортированная куча по убыванию для последующего мержа
+        children = BinomialHeap._reverse_roots(children)
+
+        temp = BinomialHeap()
+        temp.head = children
+        # В _merge size не учитывается
+        temp.size = None
+
+        BinomialHeap._merge(self, temp)
+        self.size -= 1
+
+        return node.value
+
+    def _swap_with_parent(self, node: Node):
+        parent = node.parent
+
+        # Меняем ссылки
+        parent.ref.ref, node.ref.ref = node, parent
+        parent.ref, node.ref = node.ref, parent.ref
+
+        # Меняем ключи и значения
+        parent.key, node.key = node.key, parent.key
+        parent.value, node.value = node.value, parent.value
+
+    def decrease_key(self, node: Node, new_key):
+        if node is None:
+            return
+
+        old_key = node.key
+        assert new_key < old_key
+
+        node.key = new_key
+        target = node
+
+        # Всплытие
+        while target.parent and target.key < target.parent.key:
+            self._swap_with_parent(target)
+            target = target.parent
+
+    def delete(self, node: Node):
+        if node is None:
+            return
+
+        self.decrease_key(node, float('-inf'))
+        self.extract_min()
+
+
+heap = BinomialHeap()
+a = heap.insert(1, 1)
+b = heap.insert(2, 2)
+c = heap.insert(3, 3)
+d = heap.insert(4, 4)
+
+print(a, b, c, d)
+heap.decrease_key(d.ref, 0)
+
+heap.delete(a.ref)
+
+minimal = heap.extract_min()
+
+print(minimal)
+print(1)
